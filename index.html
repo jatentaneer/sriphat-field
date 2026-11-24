@@ -38,6 +38,11 @@ header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; b
 .save.busy { color: var(--warn) } .save.err { color: var(--bad) }
 select, input, textarea { font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; min-height: 42px }
 textarea { min-height: 72px; resize: vertical }
+select, input, textarea { box-sizing: border-box; max-width: 100% }
+/* iPad Safari: ช่องวันที่/เวลามีความกว้างขั้นต่ำของตัวเอง ทำให้ล้นทับช่องข้าง → บังคับให้หดตามกรอบ */
+input[type=date], input[type=time] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; width: 100%; text-align: left; line-height: 1.4 }
+input[type=date]::-webkit-date-and-time-value, input[type=time]::-webkit-date-and-time-value { text-align: left; min-height: 1.4em }
+.grid2 > *, .signs > *, .sign > * { min-width: 0 }
 input[type=checkbox] { width: 22px; height: 22px; min-height: 0; accent-color: var(--accent) }
 input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px }
 input.bad { border-color: var(--bad); background: var(--bad-soft) }
@@ -413,7 +418,7 @@ function route() {
   const [kind, ...rest] = h.split('-'); const key = rest.join('-');
   if (kind === 'pm' && C.pm.find(a => a.key === key)) openDoc('pm', `${month}_${key}`, () => {   // ใบใหม่: หัวใบ (วันที่ Work permit ผู้ปฏิบัติงาน เครื่องมือ) ใช้ค่าจากใบอื่นของเดือนนี้
     const prev = C.pm.map(a => store.pm[`${month}_${a.key}`]).filter(d => d && (d.workers || d.permit)).sort((x, y) => (y.updatedAt || 0) - (x.updatedAt || 0))[0] || {};
-    return { month, area: key, v: {}, note: {}, photos: [], signs: {}, date: prev.date || '', permit: prev.permit || '', workers: prev.workers || '', instr: prev.instr || '', cal: prev.cal || '' } });
+    return { month, area: key, v: {}, note: {}, photos: [], signs: {}, date: prev.date || new Date().toLocaleDateString('sv-SE'), permit: prev.permit || '', workers: prev.workers || '', instr: prev.instr || '', cal: prev.cal || '' } });
   else if (kind === 'fl' && C.rounds.find(r => r.key === key)) openDoc('filters', key, () => ({ round: key, rows: {}, photos: [], signs: {} }));
   else if (kind === 'rp' && key) openDoc('repairs', key, () => ({ received: new Date().toISOString().slice(0, 10), photos: [], signs: {} }));
   else if (kind === 'sum') openDoc('summary', month, () => ({ month, signs: {} }));   // งาน/เอกสารแนบ/ปัญหา ดึงอัตโนมัติ (sumAuto)
@@ -514,7 +519,7 @@ const ROLES = { pm: [['tech', 'ผู้ปฏิบัติงาน (ช่�
 function signsBlock(roles) {
   return `<section class="card"><h2>ลงชื่อ</h2><div class="signs">${roles.map(([k, t]) => { const s = (cur.signs || {})[k] || {};
     return `<div class="sign"><b class="small">${t}</b><div class="pad">${s.id ? `<img src="${esc(blobSrc(s.id))}" alt="ลายเซ็น">` : '<span class="small muted">ยังไม่เซ็น</span>'}</div>
-    <input data-k="signs.${k}.name" value="${esc(s.name || '')}" placeholder="ชื่อ-นามสกุล" ${ro()}><input type="date" data-k="signs.${k}.date" value="${esc(s.date || '')}" ${ro()}>
+    <input data-k="signs.${k}.name" value="${esc(s.name || '')}" placeholder="ชื่อ-นามสกุล" ${ro()}><label class="f"><span class="small">วันที่ลงนาม (ใส่ให้เองตอนเซ็น)</span><input type="date" data-k="signs.${k}.date" value="${esc(s.date || '')}" ${ro()}></label>
     <div class="actions"><button class="sm" data-act="sign" data-r="${k}" ${assets ? ro() : 'disabled'}>${s.id ? 'เซ็นใหม่' : 'เซ็นชื่อ'}</button>${s.id ? `<button class="sm ghost" data-act="unsign" data-r="${k}" ${ro()}>ลบลายเซ็น</button>` : ''}</div></div>` }).join('')}</div></section>`;
 }
 
