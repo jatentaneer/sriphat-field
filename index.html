@@ -81,7 +81,13 @@ label.f > span { color: var(--muted) }
 .tri button[aria-pressed="true"].v-ok { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); font-weight: 700 }
 .tri button[aria-pressed="true"].v-ng { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); font-weight: 700 }
 .tri button[aria-pressed="true"].v-na { background: var(--surface2); border-color: var(--muted); font-weight: 700 }
-.calc { padding: 8px 10px; border: 1px dashed var(--line); border-radius: 8px; min-height: 42px; font-variant-numeric: tabular-nums }
+.calc { padding: 6px 10px; border: 0; border-radius: 8px; min-height: 42px; background: var(--surface2); font-weight: 600; font-variant-numeric: tabular-nums; display: flex; flex-direction: column; justify-content: center }
+.calc[data-calc]::before { content: 'คำนวณให้อัตโนมัติ'; font-size: 11.5px; font-weight: 400; color: var(--muted) }
+.warnmsg { font-size: 13px; color: var(--bad); font-weight: 600; line-height: 1.35 } .warnmsg:empty { display: none }
+.alertbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; margin: 8px 0; border-radius: 10px; border: 1px solid var(--bad); background: var(--bad-soft); color: var(--bad) }
+.alertbar .small { color: inherit; margin-top: 2px } .alertbar button { flex: none }
+.utabs button { position: relative } .udot { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; background: var(--bad); color: #fff; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center }
+.udot[hidden] { display: none }
 .calc.bad { border-color: var(--bad); color: var(--bad); background: var(--bad-soft) }
 .photos { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) }
 .ph { display: flex; flex-direction: column; gap: 4px } .ph img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; background: var(--surface2) }
@@ -132,6 +138,8 @@ body.hasbar { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) }
 .utabs button b { font-size: 15.5px } .utabs button .chip { font-size: 12px }
 .utabs button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink) }
 .utabs button[aria-pressed="true"] .chip { background: rgba(255,255,255,.22); color: inherit }
+.unit.wide { grid-column: 1 / -1; max-width: 460px }
+.dims { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px } .dims label.f { gap: 2px }
 .unithead { font-size: 13px; color: var(--muted); margin: 2px 0 6px }
 .tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch }
 .reftable { width: 100%; border-collapse: collapse; font-size: 14.5px }
@@ -146,6 +154,7 @@ body.hasbar { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) }
 .mchips { display: flex; flex-wrap: wrap; gap: 6px } .mchip { font-size: 13.5px; padding: 3px 10px; border-radius: 999px; background: var(--surface2); color: var(--muted) }
 .mchip.on { background: var(--accent); color: var(--accent-ink); font-weight: 600 }
 @media (max-width: 560px) { .mboxes { grid-template-columns: repeat(2, 1fr) } }
+.howto summary { cursor: pointer; list-style: none } .steps { margin: 8px 0 0; padding-left: 22px; display: grid; gap: 6px; font-size: 15px }
 .rsum { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) }
 .secbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap }
 .unit.flash { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 8px }
@@ -350,6 +359,9 @@ const COLS = ['pm', 'filters', 'repairs', 'summary', 'notices'];
 const store = Object.fromEntries(COLS.map(c => [c, {}]));
 let db = null, assets = null, user = null, downloads = null, meId = null, canWrite = true, loaded = false;
 let month = ls.get('ja.month', C.months[0].key);
+const NOW_KEY = new Date().toLocaleDateString('sv-SE').slice(0, 7), nowInContract = C.months.some(m => m.key === NOW_KEY);
+let switchedMonth = false;
+if (nowInContract && month < NOW_KEY) { month = NOW_KEY; ls.set('ja.month', month); switchedMonth = true }   // เดือนใหม่: ไปงวดปัจจุบันเอง
 if (!C.months.some(m => m.key === month)) month = C.months[0].key;
 let cur = null, curRef = null, dirty = false, saving = false, saveTimer = null;
 const monthObj = () => C.months.find(m => m.key === month);
@@ -361,6 +373,7 @@ $('#coTh').textContent = C.company.th;
 $('#jobLine').textContent = C.job;
 $('#monthSel').innerHTML = C.months.map(m => `<option value="${m.key}">งวดที่ ${m.no}  ${m.name}</option>`).join('');
 $('#monthSel').value = month;
+if (switchedMonth) setTimeout(() => toast(`เปลี่ยนเป็นงวดปัจจุบันแล้ว: งวดที่ ${monthObj().no} ${monthObj().name}`), 600);
 const setHdr = () => { const h = document.querySelector('header.top'); if (h) document.documentElement.style.setProperty('--hdr', h.offsetHeight + 'px') };
 setHdr(); addEventListener('resize', setHdr);
 $('#monthSel').onchange = e => { flush(); month = e.target.value; ls.set('ja.month', month); route() };
@@ -432,7 +445,11 @@ function route() {
   const [kind, ...rest] = h.split('-'); const key = rest.join('-');
   if (kind === 'pm' && C.pm.find(a => a.key === key)) openDoc('pm', `${month}_${key}`, () => {   // ใบใหม่: หัวใบ (วันที่ Work permit ผู้ปฏิบัติงาน เครื่องมือ) ใช้ค่าจากใบอื่นของเดือนนี้
     const prev = C.pm.map(a => store.pm[`${month}_${a.key}`]).filter(d => d && (d.workers || d.permit)).sort((x, y) => (y.updatedAt || 0) - (x.updatedAt || 0))[0] || {};
-    return { month, area: key, v: {}, note: {}, photos: [], signs: {}, date: prev.date || new Date().toLocaleDateString('sv-SE'), permit: prev.permit || '', workers: prev.workers || '', instr: prev.instr || '', cal: prev.cal || '' } });
+    const last = C.months.map(m => m.key).filter(m => m < month).reverse().map(m => store.pm[`${m}_${key}`]).find(d => d && d.dim && Object.keys(d.dim).length);
+    const a = C.pm.find(x => x.key === key), volId = a.sections[0].items.find(t => t.tag === 'vol').id, v = {};
+    if (last) Object.keys(last.dim).forEach(i => { const x = last.v && last.v[`${volId}_${i}`]; if (x) v[`${volId}_${i}`] = x });
+    const sg = prev.signs || {}, names = {}; ['tech', 'eng'].forEach(r => { if (sg[r] && sg[r].name) names[r] = { name: sg[r].name } });
+    return { month, area: key, v, dim: last ? clone(last.dim) : {}, note: {}, photos: [], signs: names, date: prev.date || new Date().toLocaleDateString('sv-SE'), permit: prev.permit || '', workers: prev.workers || '', instr: prev.instr || '', cal: prev.cal || '' } });
   else if (kind === 'fl' && C.rounds.find(r => r.key === key)) openDoc('filters', key, () => ({ round: key, rows: {}, photos: [], signs: {} }));
   else if (kind === 'rp' && key) openDoc('repairs', key, () => ({ received: new Date().toISOString().slice(0, 10), photos: [], signs: {} }));
   else if (kind === 'sum') openDoc('summary', month, () => ({ month, signs: {} }));   // งาน/เอกสารแนบ/ปัญหา ดึงอัตโนมัติ (sumAuto)
@@ -452,7 +469,7 @@ function render() {
   document.body.classList.toggle('hasbar', !!$('#view .formbar'));
   updateCalc();
 }
-const back = (t = 'หน้าหลัก', to = 'home') => `<div class="crumbs"><button data-go="${to}" class="ghost sm">← ${t}</button><span class="small muted">${esc(monthObj().name)}  งวดที่ ${monthObj().no}</span></div>`;
+const back = (t = 'หน้าหลัก', to = 'home') => `<div class="crumbs"><button data-go="${to}" class="ghost sm">← ${t}</button><span class="small muted">${esc(monthObj().name)}  งวดที่ ${monthObj().no}</span>${nowInContract && month !== NOW_KEY ? '<span class="chip warn">ไม่ใช่งวดของเดือนนี้ ตรวจสอบก่อนกรอก</span>' : ''}</div>`;
 const ro = () => canWrite && db ? '' : 'disabled';
 
 // ---------- ความคืบหน้า ----------
@@ -499,6 +516,12 @@ function renderHome() {
       + `<button class="${wait ? 'pri' : ''}" data-act="export" ${mine.length ? '' : 'disabled'}>ส่งข้อมูล</button></div></section>`;
   }
   return `<div class="sec-h"><div><h1>งวดที่ ${m.no}  ${esc(m.name)}</h1><span class="small muted">ใบ PM เสร็จ ${pmDone}/${C.pm.length} ใบ</span></div><button data-go="reports" class="${window.__LOCAL ? '' : 'pri'}">ออกรายงาน PDF</button></div>
+  <details class="card howto" ${ls.get('ja.howto', '') ? '' : 'open'} data-howto><summary><h2 style="display:inline">วิธีใช้งาน</h2> <span class="small muted">(กดเพื่อเปิด / ปิด)</span></summary>
+    <ol class="steps"><li>ตรวจว่า <b>งวด / เดือน</b> มุมขวาบนถูกต้อง</li>
+    <li>กดใบตรวจเช็คของพื้นที่ที่ตรวจ กรอกหัวใบ (ใบถัดไปแอปใส่ให้เอง)</li>
+    <li>ห้องที่มีหลายเครื่อง เลือกห้องจากแถบด้านบน กรอกทีละห้อง กด <b>ช่องว่างถัดไป</b> เพื่อไปช่องที่ยังว่าง</li>
+    <li>ช่องที่ขึ้นสีส้ม = ไม่ผ่านเกณฑ์ ให้เขียนใน <b>ปัญหาที่พบ</b> ถ่ายรูป แล้วให้เจ้าหน้าที่ประจำพื้นที่เซ็น <b>ผู้ตรวจสอบรับรอง</b></li>
+    <li>ตรวจเสร็จทุกครั้ง กด <b>ส่งข้อมูล</b> แล้วเลือก LINE กลุ่มงาน</li></ol></details>
   ${sendCard}
   <section class="card"><div class="sec-h"><h2>ใบตรวจเช็ค PM ประจำเดือน</h2><span class="small muted">${isMS(month) ? 'เดือนนี้มีหมวดตรวจตามรอบ' + (isS(month) ? ' และงานงวดสุดท้าย' : '') : ''}</span></div><div class="grid">${pmTiles}</div></section>
   <section class="card"><div class="sec-h"><h2>เปลี่ยนแผ่นกรอง</h2><button class="sm" data-go="flref">ดูรายการทั้งปี</button></div>
@@ -540,26 +563,48 @@ function signsBlock(roles) {
 }
 
 // ---------- ใบ PM ----------
-function pmBad(a, it, v, i = 0) {
-  const x = num(v); if (x === null) return false;
-  if (it.tag === 'temp') return x < a.temp[0] || x > a.temp[1];
-  if (it.tag === 'rh') return x > 60;
-  if (it.tag === 'pa') return a.key === 'uri' ? x > -2.5 : a.neg ? x >= 0 : x <= 0;
-  return false;
+// ตรวจค่าที่กรอกเทียบเกณฑ์ TOR → ข้อความเตือน ('' = ผ่าน / ยังไม่กรอก)
+function badMsg(a, it, v, i = 0) {
+  const x = num(v); if (x === null) return '';
+  const nums = (String(v).match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
+  if (it.tag === 'temp') return x < a.temp[0] ? `ต่ำกว่าเกณฑ์ (เกณฑ์ ${a.temp[0]}-${a.temp[1]} °C)` : x > a.temp[1] ? `สูงกว่าเกณฑ์ (เกณฑ์ ${a.temp[0]}-${a.temp[1]} °C)` : '';
+  if (it.tag === 'rh') return x > 60 ? 'ความชื้นเกินเกณฑ์ (ไม่เกิน 60 %RH)' : '';
+  if (it.tag === 'pa') return a.key === 'uri' ? (x > -2.5 ? 'ความดันลบไม่ถึงเกณฑ์ (ต้องลบมากกว่า 2.5 Pa เช่น -3.0)' : '')
+    : a.neg ? (x >= 0 ? 'ห้องนี้ต้องเป็นความดันลบ (ค่าติดลบ)' : '') : (x <= 0 ? 'ห้องนี้ต้องเป็นความดันบวก (มากกว่า 0)' : '');
+  if (/Temperature Sensor/.test(it.label)) return Math.abs(x) > 0.5 ? 'ผลต่างเกินเกณฑ์ (ไม่เกิน 0.5 °C) ควรปรับเทียบเซนเซอร์' : '';
+  if (/Humidity Sensor/.test(it.label)) return Math.abs(x) > 3 ? 'ผลต่างเกินเกณฑ์ (ไม่เกิน 3 %RH) ควรปรับเทียบเซนเซอร์' : '';
+  if (/Power Supply/.test(it.label)) { const o = nums.filter(n => n < 342 || n > 418); return o.length ? `แรงดันนอกช่วง 380 V ±10% (342-418 V): ${o.join(', ')} V` : '' }
+  return '';
 }
+const pmBad = (a, it, v, i = 0) => !!badMsg(a, it, v, i);
+// รวมรายการที่ไม่ผ่าน / ผิดปกติ ของใบที่เปิด (เฉพาะหมวดที่ต้องทำเดือนนี้)
+function pmIssues(a, d) {
+  const out = [];
+  for (const s of a.sections) { if (s.periodic === 'MS' && !isMS(month) || s.periodic === 'S' && !isS(month)) continue;
+    for (const it of s.items) a.units.forEach((u, i) => { if (na(a, it, i)) return; const k = `${it.id}_${i}`, v = (d.v || {})[k];
+      if (it.kind === 'ach') { const x = achOf(a, i); if (x !== null && x <= a.ach) out.push({ i, k: '', label: it.label, unit: u, msg: `ACH ต่ำกว่าเกณฑ์ (มากกว่า ${a.ach} ACH)` }) }
+      else if (it.kind === 'c') { if (v === 'ng') out.push({ i, k: `v.${k}`, label: it.label, unit: u, msg: 'ผิดปกติ' }) }
+      else { const m = badMsg(a, it, v, i); if (m) out.push({ i, k: `v.${k}`, label: it.label, unit: u, msg: m }) } }) }
+  return out;
+}
+// ขนาดห้อง (เมตร ทศนิยม 2 ตำแหน่ง) → ปริมาตร m³ = กว้าง × ยาว × สูง  (เก็บใน cur.dim[i] และใส่ผลลงช่องปริมาตรห้อง)
+const dimCtl = i => { const d = (cur.dim || {})[i] || {}, f = (k, t) => `<label class="f"><span class="small">${t}</span><input inputmode="decimal" data-k="dim.${i}.${k}" value="${esc(d[k] ?? '')}" placeholder="0.00" ${ro()}></label>`;
+  return `<div class="small muted">ขนาดห้อง หน่วยเมตร (ม.) ทศนิยม 2 ตำแหน่ง</div><div class="dims">${f('w', 'กว้าง (ม.)')}${f('l', 'ยาว (ม.)')}${f('h', 'สูง (ม.)')}</div><div class="calc" data-calc="vol" data-i="${i}"></div>` };
+function volFromDim(a, i) { const d = (cur.dim || {})[i] || {}, w = num(d.w), l = num(d.l), h = num(d.h); const id = a.sections[0].items.find(t => t.tag === 'vol').id;
+  const v = w && l && h ? Math.round(w * l * h * 100) / 100 : null; if (v !== null) cur.v[`${id}_${i}`] = v.toFixed(2); else if (d.w || d.l || d.h) delete cur.v[`${id}_${i}`]; return v }
 function achOf(a, i) { const q = num(cur.v[`${a.sections[0].items.find(t => t.tag === 'cfm').id}_${i}`]), vol = num(cur.v[`${a.sections[0].items.find(t => t.tag === 'vol').id}_${i}`]); return q && vol ? Math.round(q * 1.699 / vol * 10) / 10 : null }
 function renderPM() {
   const a = C.pm.find(x => x.key === location.hash.split('-')[1]);
   const multi = a.units.length > 1, sel = selOf(a), show = multi ? [sel] : [0];
   const tabs = multi ? `<div class="utabs" role="tablist" aria-label="เลือกห้อง / เครื่อง">${a.units.map((u, i) => { const [dn, nd] = unitCount(a, cur, i);
-    return `<button role="tab" data-act="unit" data-i="${i}" aria-pressed="${i === sel}"><b>${esc(u)}</b><span class="chip ${dn === nd && nd ? 'ok' : dn ? 'warn' : ''}" data-uprog="${i}">${dn}/${nd}</span></button>` }).join('')}</div>` : '';
+    return `<button role="tab" data-act="unit" data-i="${i}" aria-pressed="${i === sel}"><b>${esc(u)}</b><span class="chip ${dn === nd && nd ? 'ok' : dn ? 'warn' : ''}" data-uprog="${i}">${dn}/${nd}</span><span class="udot" data-udot="${i}" hidden>!</span></button>` }).join('')}</div>` : '';
   const secs = a.sections.map((s, si) => {
     const off = s.periodic === 'MS' && !isMS(month) || s.periodic === 'S' && !isS(month);
     const items = s.items.map(it => `<div class="item"><div class="lab"><b>${esc(it.label)}</b>${critBadge(it.crit)}</div>
       <div class="units">${show.map(i => { const u = a.units[i]; const k = `v.${it.id}_${i}`, v = cur.v[`${it.id}_${i}`];
-        const ctl = na(a, it, i) ? '<div class="calc muted">— ไม่เกี่ยวข้อง</div>' : it.kind === 'ach' ? `<div class="calc" data-calc="ach" data-i="${i}"></div>` : it.kind === 'c' ? tri(k, v)
-          : `<input inputmode="${it.tag === 'pa' || /ต่ำสุด/.test(it.label) ? 'text' : 'decimal'}" enterkeyhint="next" data-k="${k}" data-bad="${it.id}" placeholder="${esc(it.crit)}" value="${esc(v ?? '')}" class="${pmBad(a, it, v, i) ? 'bad' : ''}" ${ro()}>`;
-        return `<div class="unit" data-cell="${it.kind === 'ach' || na(a, it, i) ? '' : k}">${ctl}</div>` }).join('')}</div>
+        const ctl = na(a, it, i) ? '<div class="calc muted">— ไม่เกี่ยวข้อง</div>' : it.tag === 'vol' ? dimCtl(i) : it.kind === 'ach' ? `<div class="calc" data-calc="ach" data-i="${i}"></div>` : it.kind === 'c' ? tri(k, v)
+          : `<input inputmode="${it.tag === 'pa' || /ต่ำสุด/.test(it.label) ? 'text' : 'decimal'}" enterkeyhint="next" data-k="${k}" data-bad="${it.id}" placeholder="${esc(it.crit)}" value="${esc(v ?? '')}" class="${pmBad(a, it, v, i) ? 'bad' : ''}" ${ro()}><div class="warnmsg" data-warnfor="${k}">${esc(badMsg(a, it, v, i))}</div>`;
+        return `<div class="unit${it.tag === 'vol' && !na(a, it, i) ? ' wide' : ''}" data-cell="${it.kind === 'ach' || na(a, it, i) ? '' : k}">${ctl}</div>` }).join('')}</div>
       <details ${cur.note[it.id] ? 'open' : ''}><summary class="small muted"><span class="tw">หมายเหตุข้อนี้</span></summary><input data-k="note.${it.id}" value="${esc(cur.note[it.id] || '')}" ${ro()}></details></div>`).join('');
     const hasC = s.items.some(it => it.kind === 'c');
     return `<details class="card" ${off ? '' : 'open'}><summary class="sec-h"><h3><span class="tw">${esc(s.title)}</span></h3>${off ? '<span class="chip">ไม่ถึงรอบเดือนนี้  รายงานใส่ —</span>' : `<span class="chip" data-secprog="${si}"></span>`}</summary>
@@ -567,6 +612,7 @@ function renderPM() {
   }).join('');
   return `${back()}<h1>ใบตรวจเช็ค PM  ${esc(a.name)}</h1><p class="small muted">${esc(a.sys)}  ช่องตัวเลขที่ไม่ผ่านเกณฑ์จะขึ้นสีส้ม  ✓ ปกติ ✗ ผิดปกติ — ไม่เกี่ยวข้อง</p>
   <section class="card"><div class="grid2">${fld('วันที่ตรวจ', 'date', cur.date, 'date')}${fld('เวลา', 'time', cur.time, 'time')}${fld('เลขที่ Work permit', 'permit', cur.permit)}${fld('ผู้ปฏิบัติงาน', 'workers', cur.workers)}${fld('เครื่องมือวัด (ยี่ห้อ/รุ่น)', 'instr', cur.instr)}${fld('เลขที่ใบสอบเทียบ', 'cal', cur.cal)}</div></section>
+  <div id="pmAlert"></div>
   ${tabs}${multi ? `<div class="unithead">กำลังกรอก <b>${esc(a.units[sel])}</b> กรอกครบแล้วกดห้องถัดไปด้านบน หรือกด ช่องว่างถัดไป</div>` : ''}
   ${secs}
   <section class="card"><h2>ปัญหาและการแก้ไข</h2>${area('ปัญหาที่พบ', 'problems', cur.problems)}${area('การแก้ไข / ข้อเสนอแนะ', 'fix', cur.fix)}${area('คำแนะนำแก่เจ้าหน้าที่', 'advice', cur.advice, 2)}
@@ -707,8 +753,10 @@ function updateCalc() {
   if (!cur) return;
   document.querySelectorAll('[data-calc]').forEach(el => {
     const k = el.dataset.calc;
+    if (k === 'vol') { const a = C.pm.find(x => x.key === location.hash.split('-')[1]); const v = volFromDim(a, +el.dataset.i);
+      el.textContent = v === null ? 'ใส่กว้าง ยาว สูง (ม.) ระบบคำนวณ m³ ให้' : `ปริมาตร ${v.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m³` }
     if (k === 'ach') { const a = C.pm.find(x => x.key === location.hash.split('-')[1]); const v = achOf(a, +el.dataset.i);
-      el.textContent = v === null ? 'ใส่ CFM และปริมาตรห้อง' : `${v} ACH`; el.classList.toggle('bad', v !== null && v <= a.ach) }
+      el.textContent = v === null ? 'ใส่ CFM และปริมาตรห้อง' : `${v} ACH` + (v <= a.ach ? `  ต่ำกว่าเกณฑ์ (มากกว่า ${a.ach} ACH)` : ''); el.classList.toggle('bad', v !== null && v <= a.ach) }
     if (k === 'warranty') el.textContent = cur.dateAccept ? thDate(addMonths(cur.dateAccept, 6)) : 'ใส่วันตรวจรับ';
     if (k === 'due') el.textContent = cur.received ? thDate(addDays(cur.received, 3)) : '—';
   });
@@ -721,6 +769,10 @@ function updateProgress() {
   const sel = selOf(a), multi = a.units.length > 1;
   const [udn, und] = unitCount(a, cur, sel);
   if ($('#progTxt')) { $('#progTxt').textContent = multi ? `${a.units[sel]} ${udn}/${und}   ทั้งพื้นที่ ${p}%` : `${a.name.split(' (')[0]}  ${t}`; $('#progBar').style.width = p + '%' }
+  const iss = pmIssues(a, cur), al = $('#pmAlert');
+  if (al) al.innerHTML = iss.length ? `<div class="alertbar"><div><b>พบ ${iss.length} รายการที่ไม่ผ่านเกณฑ์ / ผิดปกติ</b><div class="small">${iss.slice(0, 3).map(x => `${esc(multi ? x.unit + ': ' : '')}${esc(x.label.split(':')[0].split('(')[0].trim())}  ${esc(x.msg)}`).join('<br>')}${iss.length > 3 ? '<br>…' : ''}</div>`
+    + `${(cur.problems || '').trim() ? '' : '<div class="small"><b>อย่าลืมเขียนในช่อง ปัญหาที่พบ และ การแก้ไข ด้านล่าง</b></div>'}</div><button class="sm" data-act="gobad">ไปที่รายการ</button></div>` : '';
+  a.units.forEach((u, i) => { const dt = document.querySelector(`[data-udot="${i}"]`); if (dt) dt.hidden = !iss.some(x => x.i === i) });
   a.units.forEach((u, i) => { const el = document.querySelector(`[data-uprog="${i}"]`); if (!el) return; const [dn, nd] = unitCount(a, cur, i); el.textContent = `${dn}/${nd}`; el.className = 'chip ' + (dn === nd && nd ? 'ok' : dn ? 'warn' : '') });
   a.sections.forEach((s, si) => { const el = document.querySelector(`[data-secprog="${si}"]`); if (!el) return;
     let need = 0, done = 0; s.items.forEach(it => { if (it.kind === 'ach') return; a.units.forEach((u, i) => { if (multi && i !== sel || na(a, it, i)) return; need++; const v = cur.v[`${it.id}_${i}`]; if (v !== undefined && v !== '') done++ }) });
@@ -742,10 +794,13 @@ function nextEmpty() {
 $('#view').addEventListener('input', e => {
   const k = e.target.dataset.k; if (!k || !cur) return;
   setp(cur, k, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
-  if (e.target.dataset.bad) { const a = C.pm.find(x => x.key === location.hash.split('-')[1]); const it = a.sections.flatMap(s => s.items).find(t => t.id === e.target.dataset.bad); e.target.classList.toggle('bad', pmBad(a, it, e.target.value, +e.target.dataset.k.split('_').pop())) }
+  if (e.target.dataset.bad) { const a = C.pm.find(x => x.key === location.hash.split('-')[1]); const it = a.sections.flatMap(s => s.items).find(t => t.id === e.target.dataset.bad); const m = badMsg(a, it, e.target.value, +e.target.dataset.k.split('_').pop()); e.target.classList.toggle('bad', !!m);
+    const w = document.querySelector(`[data-warnfor="${e.target.dataset.k}"]`); if (w) w.textContent = m }
   updateCalc(); markDirty();
 });
+$('#view').addEventListener('toggle', e => { if (e.target.matches && e.target.matches('[data-howto]') && !e.target.open) ls.set('ja.howto', '1') }, true);
 $('#view').addEventListener('change', async e => {
+  const dk = e.target.dataset.k; if (dk && dk.startsWith('dim.') && cur) { const x = num(e.target.value); if (x !== null) { e.target.value = x.toFixed(2); setp(cur, dk, e.target.value); updateCalc(); markDirty() } }
   if (e.target.dataset.act === 'addphoto') { const files = [...e.target.files]; e.target.value = ''; await addPhotos(files) }
 });
 $('#view').addEventListener('click', async e => {
@@ -758,6 +813,10 @@ $('#view').addEventListener('click', async e => {
   if (act === 'delphoto') { const [p] = cur.photos.splice(+b.dataset.i, 1); markDirty(); render(); try { await assets?.delete(p.id) } catch {} }
   if (act === 'allok') { const a = C.pm.find(x => x.key === cur.area); const sel = selOf(a); a.sections[+b.dataset.s].items.forEach(it => { if (it.kind !== 'c') return; a.units.forEach((u, i) => { if (a.units.length > 1 && i !== sel || na(a, it, i)) return; const k = `${it.id}_${i}`; if (!cur.v[k]) cur.v[k] = 'ok' }) }); markDirty(); render(); toast('ติ๊ก ✓ ปกติให้แล้ว แก้ข้อที่ผิดปกติได้'); return }
   if (act === 'flarea') { ls.set('ja.flref', +b.dataset.i); render(); window.scrollTo({ top: 0 }); return }
+  if (act === 'gobad') { const a = C.pm.find(x => x.key === cur.area), iss = pmIssues(a, cur); if (!iss.length) return;
+    const sel = selOf(a), x = iss.find(y => y.i === sel) || iss[0];
+    const go = () => { const el = x.k ? document.querySelector(`[data-cell="${x.k}"]`) : document.querySelector(`[data-calc="ach"][data-i="${x.i}"]`); if (el) { el.closest('details')?.setAttribute('open', ''); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1400) } };
+    if (a.units.length > 1 && x.i !== sel) { unitSel[a.key] = x.i; ls.set('ja.unit.' + a.key, x.i); render(); setTimeout(go, 200) } else go(); return }
   if (act === 'unit') { const a = C.pm.find(x => x.key === cur.area); flush(); unitSel[a.key] = +b.dataset.i; ls.set('ja.unit.' + a.key, +b.dataset.i); render(); window.scrollTo({ top: 0 }); return }
   if (act === 'nextempty') { nextEmpty(); return }
   if (act === 'copybrand') { const rd = C.rounds.find(r => r.key === cur.round); let n = 0;
@@ -882,7 +941,7 @@ async function toPdf(groups, filename, btn) {
       const land = pages[i].classList.contains('land');
       const cv = await capturePage(pages[i]);
       if (!pdf) pdf = new jsPDF({ orientation: land ? 'l' : 'p', unit: 'mm', format: 'a4' }); else pdf.addPage('a4', land ? 'l' : 'p');
-      pdf.addImage(cv.toDataURL('image/jpeg', .86), 'JPEG', 0, 0, land ? 297 : 210, land ? 210 : 297);
+      pdf.addImage(cv.toDataURL('image/jpeg', .94), 'JPEG', 0, 0, land ? 297 : 210, land ? 210 : 297);
     }
     const blob = pdf.output('blob');
     try { await downloads.save({ filename, data: blob }); toast('บันทึกไฟล์แล้ว') }
@@ -892,15 +951,15 @@ async function toPdf(groups, filename, btn) {
 }
 // วาดหน้าเป็นภาพ: ซ่อนเส้น CSS แล้ววาดเส้นตารางเองหนา 1 พิกเซล (≈ 0.37 pt) บางเท่าเส้น hairline ของ Excel ทุกอุปกรณ์
 async function capturePage(pg) {
-  const S = 2, pr = pg.getBoundingClientRect();
+  const S = 3, W = 2, pr = pg.getBoundingClientRect();     // ความละเอียด 3 เท่า (ตัวหนังสือคม) · เส้น 2 พิกเซล ≈ 0.5 pt เท่าเส้นในไฟล์ Excel
   const boxes = [...pg.querySelectorAll('td, th, .sg, .sg > div, .phs figure')].map(e => { const r = e.getBoundingClientRect(); return [r.left - pr.left, r.top - pr.top, r.right - pr.left, r.bottom - pr.top] });
   pg.classList.add('cap');
   const cv = await html2canvas(pg, { scale: S, backgroundColor: '#ffffff', useCORS: true, logging: false });
   pg.classList.remove('cap');
   const ctx = cv.getContext('2d'); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#000';   // html2canvas ทิ้ง scale ไว้ในบริบท
   for (const [x0, y0, x1, y1] of boxes) {
-    const a = Math.round(x0 * S), b = Math.round(y0 * S), c = Math.max(a + 1, Math.round(x1 * S) - 1), d = Math.max(b + 1, Math.round(y1 * S) - 1);
-    ctx.fillRect(a, b, c - a + 1, 1); ctx.fillRect(a, d, c - a + 1, 1); ctx.fillRect(a, b, 1, d - b + 1); ctx.fillRect(c, b, 1, d - b + 1);
+    const a = Math.round(x0 * S), b = Math.round(y0 * S), c = Math.max(a + W, Math.round(x1 * S) - W), d = Math.max(b + W, Math.round(y1 * S) - W);
+    ctx.fillRect(a, b, c - a + W, W); ctx.fillRect(a, d, c - a + W, W); ctx.fillRect(a, b, W, d - b + W); ctx.fillRect(c, b, W, d - b + W);
   }
   return cv;
 }
