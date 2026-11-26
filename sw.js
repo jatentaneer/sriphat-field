@@ -1,5 +1,5 @@
 // เก็บแอปไว้ในเครื่อง ใช้งานได้แม้ไม่มีอินเทอร์เน็ต (เปิดครั้งแรกต้องมีเน็ต)
-const CACHE = 'ja-field-8220bc2c2c';
+const CACHE = 'ja-field-4afaa73c52';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png',
   'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'];
